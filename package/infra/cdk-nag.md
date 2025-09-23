@@ -53,7 +53,7 @@ CDK Nagスキャンで13個のエラーと2個の警告が検出されました�
 
 ### 高優先度 (セキュリティ重要)
 1. API Gateway認証の実装 (AwsSolutions-APIG4, AwsSolutions-COG4)
-2. S3 SSL必須設定 (AwsSolutions-S10)
+2. ~~S3 SSL必須設定 (AwsSolutions-S10)~~ ✅ **修正済み**
 3. IAMワイルドカード権限の制限 (AwsSolutions-IAM5)
 
 ### 中優先度 (運用・監査)
@@ -65,3 +65,43 @@ CDK Nagスキャンで13個のエラーと2個の警告が検出されました�
 1. AWS管理ポリシーのカスタム化 (AwsSolutions-IAM4)
 2. DynamoDB PITR有効化 (AwsSolutions-DDB3)
 3. AWS WAFv2設定 (AwsSolutions-APIG3)
+
+## 修正履歴
+
+### 2025-09-23: S3 HTTPS強制設定の修正 (AwsSolutions-S10)
+
+**問題:** S3バケットでHTTPS通信が強制されていない
+**重要度:** ERROR (高優先度)
+**対象ファイル:** `package/infra/src/construct/bucket.py`
+
+**修正内容:**
+- S3バケットにHTTPS-onlyポリシーを追加
+- `aws:SecureTransport`条件を使用してHTTP接続を拒否
+- すべてのS3操作でSSL/TLS通信を必須化
+
+**実装詳細:**
+```python
+# Add HTTPS-only policy to enforce SSL
+self.bucket.add_to_resource_policy(
+    iam.PolicyStatement(
+        sid="DenyInsecureConnections",
+        effect=iam.Effect.DENY,
+        principals=[iam.AnyPrincipal()],
+        actions=["s3:*"],
+        resources=[
+            self.bucket.bucket_arn,
+            f"{self.bucket.bucket_arn}/*",
+        ],
+        conditions={
+            "Bool": {
+                "aws:SecureTransport": "false"
+            }
+        },
+    )
+)
+```
+
+**効果:**
+- 暗号化されていないHTTP接続をすべて拒否
+- データの盗聴や改ざんリスクを軽減
+- AWS Well-Architected Framework のセキュリティベストプラクティスに準拠

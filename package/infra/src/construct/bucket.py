@@ -1,6 +1,7 @@
 from typing import Any, Self
 
 import aws_cdk as cdk
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
 from constructs import Construct
 
@@ -32,6 +33,21 @@ class S3Construct(Construct):
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
             removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+
+        # Add HTTPS-only policy to enforce SSL
+        self.bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                sid="DenyInsecureConnections",
+                effect=iam.Effect.DENY,
+                principals=[iam.StarPrincipal()],
+                actions=["s3:*"],
+                resources=[
+                    self.bucket.bucket_arn,
+                    f"{self.bucket.bucket_arn}/*",
+                ],
+                conditions={"Bool": {"aws:SecureTransport": "false"}},
+            )
         )
 
         # Output bucket name

@@ -21,3 +21,8 @@ tasks:
     command: uv run cdk deploy
     options:
       cache: false
+
+  test:
+    command: uv run pytest tests
+    options:
+      cache: false
