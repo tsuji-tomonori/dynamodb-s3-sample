@@ -1,0 +1,27 @@
+[project]
+name = "dynamodb-s3-sample"
+version = "1.0.0"
+description = "DynamoDB, S3, FastAPI samples"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.117.1",
+    "mangum>=0.19.0",
+    "pydantic>=2.11.9",
+    "pynamodb>=6.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "boto3>=1.40.36",
+    "boto3-stubs[dynamodb,s3]>=1.40.36",
+    "ruff>=0.13.1",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # pycodestyle, Pyflakes, isort
+fixable = ["ALL"]

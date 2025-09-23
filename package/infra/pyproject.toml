@@ -1,0 +1,10 @@
+[project]
+name = "dynamodb-s3-sample"
+version = "1.0.0"
+description = "DynamoDB, S3, FastAPI samples"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aws-cdk-lib>=2.216.0",
+    "constructs>=10.4.2",
+]

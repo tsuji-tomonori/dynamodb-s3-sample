@@ -1,0 +1,19 @@
+language: python
+type: application
+tasks:
+  install:
+    command: uv sync
+    options:
+      cache: false
+
+  bootstrap:
+    command: uv run cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/ap-northeast-1
+    deps:
+      - ~:install
+    local: true
+
+  diff:
+    command: uv run cdk diff
+    inputs:
+      - 'src/**/*.py'
+      - 'app.py'

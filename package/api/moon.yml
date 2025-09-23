@@ -1,0 +1,14 @@
+language: python
+type: application
+tasks:
+  install:
+    command: uv sync --dev
+    options:
+      cache: false
+  layer:
+    command: uv pip install -r pyproject.toml --group dev --target ../../.layers/python --no-cache-dir
+    deps:
+      - ~:install
+    inputs:
+      - pyproject.toml
+      - uv.lock
