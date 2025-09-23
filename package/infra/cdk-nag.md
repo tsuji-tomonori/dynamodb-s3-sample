@@ -352,6 +352,99 @@ CDK Nagの抑制機能では、生成されるリソース識別子（例：`<Se
 2. セキュリティ監査での抑制理由の詳細説明準備
 3. 本番環境デプロイ前のセキュリティレビュー実施
 
+### 2025-09-24: AwsSolutions-IAM5追加ワイルドカード権限の抑制対応
+
+**背景:** AWS管理ポリシー修正後に新たに表面化したAwsSolutions-IAM5エラーを検証し、技術的に必要なワイルドカード権限として適切な抑制を実施。
+
+**新たに発生したAwsSolutions-IAM5エラー:**
+
+**1. Lambda CloudWatchログストリーム権限**
+```
+Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/<ServerFunctionB9E3FD9F>:*
+```
+
+**技術的必要性と抑制理由:**
+- **AWS仕様上の制約:** CloudWatchは実行時に動的なタイムスタンプでログストリーム名を自動生成
+- **標準パターン:** AWS公式ドキュメントとベストプラクティスで推奨される権限設定
+- **セキュリティ配慮:** 具体的なLambda関数のロググループに限定済み（`/aws/lambda/<function_name>`）
+- **業務上の必要性:** Lambda関数の正常なロギング機能に必須
+
+**2. S3ログオブジェクト権限**
+```
+Resource::<LogBucket7273C8DB.Arn>/*
+```
+
+**技術的必要性と抑制理由:**
+- **動的リソース:** ログファイルパスは実行時の日時・リクエストIDで動的生成されるため事前特定不可
+- **業界標準:** S3ベースのアプリケーションログ出力の一般的なパターン
+- **セキュリティ配慮:** 専用ログバケットに限定し、削除権限は除外済み
+- **最小権限:** `s3:PutObject`, `s3:PutObjectAcl`のみに制限
+
+**抑制vs修正の判断根拠:**
+
+**✅ 抑制が適切な理由:**
+1. **AWS/CDKアーキテクチャ上の技術的制約:** 回避不可能な仕様
+2. **AWS公式推奨パターン:** セキュリティベストプラクティスに準拠
+3. **リソース限定済み:** 具体的なリソースARNに制限され最小権限を実現
+4. **代替手段なし:** より具体的な権限指定が技術的に不可能
+
+**❌ 修正が不適切な理由:**
+1. **機能破綻リスク:** ログ機能が完全に停止する
+2. **AWS仕様違反:** CloudWatch/S3の標準的な統合パターンに反する
+3. **開発・運用効率の著しい低下:** 動的リソース名の事前予測は実質不可能
+
+**実装すべき抑制設定:**
+
+```python
+# Lambda CloudWatchログストリーム権限の抑制
+NagSuppressions.add_resource_suppressions(
+    self.execution_role,
+    [
+        {
+            "id": "AwsSolutions-IAM5",
+            "reason": "Lambda function requires wildcard permission for log streams within its specific log group. CloudWatch Logs automatically generates unique stream names with timestamps at runtime, making wildcard necessary. This follows AWS official best practices for Lambda logging and is limited to the specific function's log group.",
+            "appliesTo": [
+                f"Resource::arn:aws:logs:*:*:log-group:/aws/lambda/{self.function.function_name}:*"
+            ],
+        }
+    ],
+)
+
+# S3ログオブジェクト権限の抑制
+NagSuppressions.add_resource_suppressions(
+    self.execution_role,
+    [
+        {
+            "id": "AwsSolutions-IAM5",
+            "reason": "Lambda function requires wildcard permission for log objects within the specific log bucket. Log file paths include dynamic timestamps and request IDs that cannot be predetermined. This is a standard pattern for S3-based application logging and is limited to PUT operations on the dedicated log bucket only.",
+            "appliesTo": [
+                f"Resource::{self.log_bucket.bucket.bucket_arn}/*"
+            ],
+        }
+    ],
+)
+```
+
+**セキュリティ監査への対応準備:**
+
+**文書化する技術的根拠:**
+1. **AWS公式ドキュメント参照:** CloudWatch LogsとS3統合の推奨設定パターン
+2. **業界標準との整合性:** エンタープライズ環境での一般的な実装方式
+3. **代替手段の検証結果:** より制限的な権限設定の技術的実現不可能性
+
+**継続的なセキュリティ管理:**
+1. **定期監査:** 抑制理由の妥当性を四半期ごとに再評価
+2. **AWS更新追跡:** 新機能による権限改善可能性の継続的調査
+3. **ログ監視:** 実際の権限使用パターンの監視とレビュー
+
+**修正不可の最終確認:**
+- ✅ **技術的制約確認完了:** AWS/CDKアーキテクチャ上の回避不可能な制約
+- ✅ **セキュリティリスク評価完了:** 限定的リソースへの最小権限で受容可能
+- ✅ **業務影響評価完了:** ログ機能維持のため抑制が必須
+- ✅ **代替手段検証完了:** より制限的な実装手段は存在しない
+
+**結論:** これらのワイルドカード権限は技術的に必要かつ回避不可能であり、適切な抑制理由と共に文書化して抑制対応を実施する方針が妥当である。
+
 ### 2025-09-23: IAMワイルドカード権限の修正 (AwsSolutions-IAM5)
 
 **問題:** Lambdaのデフォルトポリシーにワイルドカード権限が含まれている

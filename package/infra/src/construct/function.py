@@ -95,15 +95,16 @@ class LambdaConstruct(Construct):
             )
         )
 
-        # Suppress CDK Nag for necessary log stream wildcard permissions
-        NagSuppressions.add_resource_suppressions(
-            self.execution_role,
+        # Suppress CDK Nag for necessary log stream wildcard permissions on DefaultPolicy
+        NagSuppressions.add_resource_suppressions_by_path(
+            cdk.Stack.of(self),
+            f"{self.execution_role.node.path}/DefaultPolicy",
             [
                 {
                     "id": "AwsSolutions-IAM5",
-                    "reason": "Lambda function requires wildcard permission for log streams within its specific log group. This is necessary for CloudWatch Logs functionality and follows AWS best practices for Lambda logging.",
+                    "reason": "Lambda function requires wildcard permission for log streams within its specific log group. CloudWatch Logs automatically generates unique stream names with timestamps at runtime, making wildcard necessary. This follows AWS official best practices for Lambda logging and is limited to the specific function's log group.",
                     "appliesTo": [
-                        "Resource::arn:aws:logs:*:*:log-group:/aws/lambda/*:*"
+                        "Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/<ServerFunctionB9E3FD9F>:*"
                     ],
                 }
             ],

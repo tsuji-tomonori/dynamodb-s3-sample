@@ -80,15 +80,16 @@ class ApigwConstruct(Construct):
             cloud_watch_role_arn=self.cloudwatch_role.role_arn,
         )
 
-        # Suppress CDK Nag for necessary API Gateway log stream wildcard permissions
-        NagSuppressions.add_resource_suppressions(
-            self.cloudwatch_role,
+        # Suppress CDK Nag for necessary API Gateway log stream wildcard permissions on DefaultPolicy
+        NagSuppressions.add_resource_suppressions_by_path(
+            cdk.Stack.of(self),
+            f"{self.cloudwatch_role.node.path}/DefaultPolicy",
             [
                 {
                     "id": "AwsSolutions-IAM5",
                     "reason": "API Gateway requires wildcard permission for log streams within its specific log group. This is necessary for API Gateway access logging and follows AWS best practices.",
                     "appliesTo": [
-                        "Resource::arn:aws:logs:*:*:log-group:API-Gateway-Execution-Logs_*/*:*"
+                        "Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:API-Gateway-Execution-Logs_<ApiLambdaRestApiB2B131F6>/v1:*"
                     ],
                 }
             ],

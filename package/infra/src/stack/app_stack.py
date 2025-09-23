@@ -73,15 +73,16 @@ class AppStack(cdk.Stack):
             )
         )
 
-        # Suppress CDK Nag for necessary S3 object wildcard permissions
-        NagSuppressions.add_resource_suppressions(
-            self.server.function.role,
+        # Suppress CDK Nag for necessary S3 object wildcard permissions on DefaultPolicy
+        NagSuppressions.add_resource_suppressions_by_path(
+            self,
+            f"{self.server.execution_role.node.path}/DefaultPolicy",
             [
                 {
                     "id": "AwsSolutions-IAM5",
-                    "reason": "Lambda function requires wildcard permission for S3 objects within the specific log bucket. This is necessary for log file operations and follows AWS best practices for Lambda S3 access.",
+                    "reason": "Lambda function requires wildcard permission for log objects within the specific log bucket. Log file paths include dynamic timestamps and request IDs that cannot be predetermined. This is a standard pattern for S3-based application logging and is limited to PUT operations on the dedicated log bucket only.",
                     "appliesTo": [
-                        "Resource::*/*"
+                        "Resource::<LogBucket7273C8DB.Arn>/*"
                     ],
                 }
             ],
