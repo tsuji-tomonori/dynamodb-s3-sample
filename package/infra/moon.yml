@@ -17,3 +17,9 @@ tasks:
     inputs:
       - 'src/**/*.py'
       - 'app.py'
+
+  deploy:
+    command: uv run cdk deploy
+    inputs:
+      - 'src/**/*.py'
+      - 'app.py'

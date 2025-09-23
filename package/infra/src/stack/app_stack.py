@@ -2,10 +2,11 @@ from typing import Any
 
 import aws_cdk as cdk
 from constructs import Construct
-from src.model.project import Project
+from src.construct.bucket import S3Construct
 from src.construct.function import LambdaConstruct
 from src.construct.rest_api import ApigwConstruct
 from src.construct.table import DynamoDBConstruct
+from src.model.project import Project
 
 
 class AppStack(cdk.Stack):
@@ -31,20 +32,31 @@ class AppStack(cdk.Stack):
             project=project,
         )
 
-        self.archive_metadata = DynamoDBConstruct(
+        self.book = DynamoDBConstruct(
             self,
-            "ArchiveMetadata",
+            "Book",
         )
 
         self.server.function.add_environment(
-            "DYNAMODB_TABLE_NAME",
-            self.archive_metadata.table.table_name,
+            "BOOKS_TABLE_NAME",
+            self.book.table.table_name,
         )
 
         assert self.server.function.role is not None, (
             "Lambda function role must be defined"
         )
-        self.archive_metadata.table.grant_read_data(self.server.function)
+        self.book.table.grant_read_data(self.server.function)
+
+        self.log_bucket = S3Construct(
+            self,
+            "LogBucket",
+        )
+
+        self.server.function.add_environment(
+            "LOG_BUCKET_NAME",
+            self.log_bucket.bucket.bucket_name,
+        )
+        self.log_bucket.bucket.grant_read_write(self.server.function)
 
         self.api = ApigwConstruct(
             self,

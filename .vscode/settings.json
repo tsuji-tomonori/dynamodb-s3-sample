@@ -35,6 +35,7 @@
         "**/.git/subtree-cache/**": true,
         "**/.hg/store/**": true,
         "**/build/**": true,
+        "**/cdk.out/**": true,
     },
     // Git設定
     "git.autofetch": "all", // 全リポジトリの自動フェッチ
@@ -90,4 +91,17 @@
     },
     // テスト設定
     "testing.showAllMessages": true, // テストの実行時成功してもメッセージを表示する
+    // エラー除外設定
+    "files.exclude": {
+        "**/__pycache__": true, // __pycache__ ディレクトリを非表示
+        "**/.pytest_cache": true, // .pytest_cache ディレクトリを非表示
+        "**/.mypy_cache": true, // .mypy_cache ディレクトリを非表示
+        "**/.venv": true, // .venv ディレクトリを非表示
+        "**/.vscode": true, // .vscode ディレクトリを非表示
+        "**/.idea": true, // .idea ディレクトリを非表示
+        "**/.DS_Store": true, // .DS_Store ファイルを非表示
+        "**/.env": true, // .env ファイルを非表示
+        "**/.env.*": true, // .env.* ファイルを非表示
+        "**/cdk.out": true, // cdk.out ディレクトリを非表示
+    }
 }
