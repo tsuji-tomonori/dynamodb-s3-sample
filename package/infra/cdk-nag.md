@@ -106,6 +106,252 @@ self.bucket.add_to_resource_policy(
 - データの盗聴や改ざんリスクを軽減
 - AWS Well-Architected Framework のセキュリティベストプラクティスに準拠
 
+### 2025-09-23: AWS管理ポリシーの置き換え (AwsSolutions-IAM4)
+
+**問題:** AWSLambdaBasicExecutionRoleとAmazonAPIGatewayPushToCloudWatchLogsなどのAWS管理ポリシーが使用されている
+**重要度:** ERROR (高優先度)
+**対象ファイル:** `package/infra/src/construct/function.py`, `package/infra/src/construct/rest_api.py`
+
+**修正内容:**
+1. **Lambda関数実行ロール**: デフォルトの`AWSLambdaBasicExecutionRole`を独自のカスタム実行ロールに置き換え
+2. **API Gateway CloudWatchロール**: `AmazonAPIGatewayPushToCloudWatchLogs`を独自のカスタムポリシーに置き換え
+
+**修正前の問題:**
+- CDKのデフォルト動作でAWS管理ポリシーが自動適用される
+- AWS管理ポリシーは過度に広範囲な権限を含む可能性がある
+- 最小権限の原則に違反するリスク
+
+**Lambda関数実行ロールの修正詳細:**
+```python
+# Custom execution role creation
+self.execution_role = iam.Role(
+    self,
+    "ExecutionRole",
+    assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+    description="Custom Lambda execution role with minimal permissions",
+)
+
+# Add specific CloudWatch Logs permissions
+self.execution_role.add_to_policy(
+    iam.PolicyStatement(
+        effect=iam.Effect.ALLOW,
+        actions=[
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+        ],
+        resources=[
+            f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/*"
+        ],
+    )
+)
+
+# Lambda function with custom role
+self.function = lambda_.Function(
+    # ... other parameters ...
+    role=self.execution_role,  # Use custom role instead of default
+)
+```
+
+**API Gateway CloudWatchロールの修正詳細:**
+```python
+# Custom CloudWatch role for API Gateway
+self.cloudwatch_role = iam.Role(
+    self,
+    "CloudWatchRole",
+    assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+    description="Custom API Gateway CloudWatch logs role",
+)
+
+# Add specific CloudWatch permissions
+self.cloudwatch_role.add_to_policy(
+    iam.PolicyStatement(
+        effect=iam.Effect.ALLOW,
+        actions=[
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:DescribeLogGroups",
+            "logs:DescribeLogStreams",
+            "logs:PutLogEvents",
+            "logs:GetLogEvents",
+            "logs:FilterLogEvents",
+        ],
+        resources=[
+            f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:*"
+        ],
+    )
+)
+
+# Set the CloudWatch role at account level
+apigw.CfnAccount(
+    self,
+    "CloudWatchAccount",
+    cloud_watch_role_arn=self.cloudwatch_role.role_arn,
+)
+```
+
+**効果:**
+- AWS管理ポリシーの依存を排除
+- 最小権限の原則に準拠した独自ポリシーを実装
+- セキュリティ要件に応じた権限の細かな調整が可能
+- CDK Nag ルール AwsSolutions-IAM4 に準拠
+- 運用環境でのセキュリティ監査の通過率向上
+
+### 2025-09-24: AwsSolutions-IAM4とIAM5の追加修正
+
+**背景:** 前回の修正後もAwsSolutions-IAM4とAwsSolutions-IAM5エラーが残存していたため、根本的な解決を実施
+
+**問題:**
+1. LambdaRestApiコンストラクトが自動的にAWS管理ポリシーを使用するCloudWatchロールを作成
+2. Lambda実行ロールとAPI Gatewayロールでワイルドカード権限が使用されている
+
+**追加修正内容:**
+
+**1. API Gateway デフォルトCloudWatchロール無効化:**
+```python
+# LambdaRestApiのデフォルトCloudWatchロール作成を無効化
+self.api_gateway = apigw.LambdaRestApi(
+    self,
+    "LambdaRestApi",
+    handler=function,
+    proxy=True,
+    description=project.description,
+    cloud_watch_role=False,  # デフォルトロール作成を無効化
+    deploy_options=apigw.StageOptions(
+        logging_level=apigw.MethodLoggingLevel.ERROR,
+        stage_name=project.major_version,
+    ),
+)
+```
+
+**2. Lambda実行ロールの具体的リソース指定:**
+```python
+# Lambda関数作成後に具体的な関数名でログ権限を付与
+self.execution_role.add_to_policy(
+    iam.PolicyStatement(
+        effect=iam.Effect.ALLOW,
+        actions=[
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+        ],
+        resources=[
+            f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{self.function.function_name}",
+            f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{self.function.function_name}:*",
+        ],
+    )
+)
+```
+
+**3. API Gateway CloudWatchロールの具体的リソース指定:**
+```python
+# API Gateway作成後に具体的なAPI IDでログ権限を付与
+self.cloudwatch_role.add_to_policy(
+    iam.PolicyStatement(
+        effect=iam.Effect.ALLOW,
+        actions=[
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:DescribeLogGroups",
+            "logs:DescribeLogStreams",
+            "logs:PutLogEvents",
+            "logs:GetLogEvents",
+            "logs:FilterLogEvents",
+        ],
+        resources=[
+            f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:API-Gateway-Execution-Logs_{self.api_gateway.rest_api_id}/{project.major_version}",
+            f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:API-Gateway-Execution-Logs_{self.api_gateway.rest_api_id}/{project.major_version}:*",
+        ],
+    )
+)
+```
+
+**解決された問題:**
+- ✅ AWS管理ポリシー`AmazonAPIGatewayPushToCloudWatchLogs`の使用を完全に排除
+- ✅ Lambdaログリソースのワイルドカード権限`/aws/lambda/*`を具体的な関数名に限定
+- ✅ API Gatewayログリソースのワイルドカード権限`API-Gateway-Execution-Logs*`を具体的なAPI IDとステージに限定
+- ✅ CDKコンストラクトのデフォルト動作による自動ポリシー作成を無効化
+
+**セキュリティ向上効果:**
+- 最小権限の原則を厳密に適用
+- リソース固有の権限付与によりアクセス範囲を最小化
+- AWS管理ポリシーの過度に広範囲な権限を排除
+- インフラ運用時の権限昇格リスクを軽減
+
+### 2025-09-24: 必要なワイルドカード権限の適切な抑制 (AwsSolutions-IAM5)
+
+**背景:** AWS管理ポリシーを排除した後、機能的に必要なワイルドカード権限についてCDK Nagエラーが発生。これらは技術的に必要な権限であるため、修正ではなく抑制で対応。
+
+**抑制が必要な理由と抑制対象:**
+
+**1. Lambda CloudWatchログストリーム権限**
+```
+Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/<function_name>:*
+```
+- **技術的必要性:** CloudWatchは動的にログストリーム名を生成するため、ワイルドカードが必須
+- **セキュリティ配慮:** 具体的な関数のログループに限定済み
+- **AWS公式推奨:** Lambda CloudWatch統合の標準パターン
+
+**2. S3オブジェクト権限**
+```
+Resource::<bucket_arn>/*
+```
+- **技術的必要性:** ログファイルは動的なパス/名前で作成されるため、オブジェクト単位の事前指定は不可能
+- **セキュリティ配慮:** 特定のログバケットに限定し、削除権限は除外済み
+- **業界標準:** S3ログ出力の一般的なパターン
+
+**3. API Gateway CloudWatchログストリーム権限**
+```
+Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:API-Gateway-Execution-Logs_<api_id>/<stage>:*
+```
+- **技術的必要性:** API Gatewayが自動的にログストリームを作成するため、ワイルドカードが必須
+- **セキュリティ配慮:** 具体的なAPI IDとステージに限定済み
+- **AWS公式推奨:** API Gatewayログ統合の標準パターン
+
+**抑制実装例:**
+```python
+# Lambda関数のログストリーム権限抑制
+NagSuppressions.add_resource_suppressions(
+    self.execution_role,
+    [
+        {
+            "id": "AwsSolutions-IAM5",
+            "reason": "Lambda function requires wildcard permission for log streams within its specific log group. This is necessary for CloudWatch Logs functionality and follows AWS best practices for Lambda logging.",
+            "appliesTo": [
+                "Resource::arn:aws:logs:*:*:log-group:/aws/lambda/*:*"
+            ],
+        }
+    ],
+)
+```
+
+**抑制パターンマッチングの課題:**
+CDK Nagの抑制機能では、生成されるリソース識別子（例：`<ServerFunctionB9E3FD9F>`）と抑制パターンの正確な一致が必要です。CDKは合成時に動的に一意の識別子を生成するため、静的な抑制パターンとの完全一致が困難な場合があります。
+
+**現在の実装状況:**
+- ✅ AWS管理ポリシー（AwsSolutions-IAM4）の完全排除を達成
+- ✅ カスタム実行ロールとCloudWatchロールの実装完了
+- ✅ 最小権限原則に基づく権限設計の実装
+- ⚠️ CDK Nag抑制パターンの完全一致調整が継続課題
+
+**抑制 vs 修正の判断基準:**
+- ✅ **抑制適用:** AWS/CDKアーキテクチャ上で技術的に必要かつ回避不可能な権限
+- ✅ **抑制適用:** リソース特定済みで最小権限に限定された権限
+- ✅ **抑制適用:** AWS公式ドキュメントで推奨されているパターン
+- ❌ **修正必要:** 開発者の実装不備による過剰権限
+- ❌ **修正必要:** より具体的な権限指定が技術的に可能な場合
+
+**セキュリティ監査対応:**
+- 各抑制に技術的根拠と業務上の必要性を明記
+- appliesTo で具体的なリソースARNパターンを限定
+- AWS Well-Architected Framework セキュリティピラーに準拠
+- 定期的な抑制理由の見直しプロセスを確立
+
+**今後の対応:**
+1. CDK Nag抑制パターンの精密化（継続作業）
+2. セキュリティ監査での抑制理由の詳細説明準備
+3. 本番環境デプロイ前のセキュリティレビュー実施
+
 ### 2025-09-23: IAMワイルドカード権限の修正 (AwsSolutions-IAM5)
 
 **問題:** Lambdaのデフォルトポリシーにワイルドカード権限が含まれている

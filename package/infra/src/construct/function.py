@@ -2,8 +2,10 @@ from pathlib import Path
 from typing import Any, Self
 
 import aws_cdk as cdk
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs
+from cdk_nag import NagSuppressions
 from constructs import Construct
 from src.model.project import Project
 
@@ -28,6 +30,15 @@ class LambdaConstruct(Construct):
         """
         super().__init__(scope, construct_id, **kwargs)
 
+        # Create custom execution role to replace AWS managed policy
+        self.execution_role = iam.Role(
+            self,
+            "ExecutionRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            description="Custom Lambda execution role with minimal permissions",
+        )
+
+
         # Create Lambda layer for dependencies
         layer_path = str(Path(__file__).resolve().parents[4] / ".layers")
         self.dependencies_layer = lambda_.LayerVersion(
@@ -44,7 +55,7 @@ class LambdaConstruct(Construct):
             description=project.description,
         )
 
-        # Create Lambda function
+        # Create Lambda function with custom role
         self.function = lambda_.Function(
             self,
             "Function",
@@ -53,6 +64,7 @@ class LambdaConstruct(Construct):
             code=lambda_.Code.from_asset("../api"),
             memory_size=5192,
             timeout=cdk.Duration.seconds(15),
+            role=self.execution_role,  # Use custom role instead of default
             layers=[
                 self.dependencies_layer,
             ],
@@ -65,6 +77,36 @@ class LambdaConstruct(Construct):
                 "PROJECT_MAJOR_VERSION": project.major_version,
                 "PROJECT_SEMANTIC_VERSION": project.semantic_version,
             },
+        )
+
+        # Add custom policy for CloudWatch Logs with specific function name
+        self.execution_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                ],
+                resources=[
+                    f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{self.function.function_name}",
+                    f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{self.function.function_name}:*",
+                ],
+            )
+        )
+
+        # Suppress CDK Nag for necessary log stream wildcard permissions
+        NagSuppressions.add_resource_suppressions(
+            self.execution_role,
+            [
+                {
+                    "id": "AwsSolutions-IAM5",
+                    "reason": "Lambda function requires wildcard permission for log streams within its specific log group. This is necessary for CloudWatch Logs functionality and follows AWS best practices for Lambda logging.",
+                    "appliesTo": [
+                        "Resource::arn:aws:logs:*:*:log-group:/aws/lambda/*:*"
+                    ],
+                }
+            ],
         )
 
         # Create log group with retention

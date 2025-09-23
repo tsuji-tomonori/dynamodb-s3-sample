@@ -2,6 +2,7 @@ from typing import Any
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
+from cdk_nag import NagSuppressions
 from constructs import Construct
 from src.construct.bucket import S3Construct
 from src.construct.function import LambdaConstruct
@@ -70,6 +71,20 @@ class AppStack(cdk.Stack):
                     f"{self.log_bucket.bucket.bucket_arn}/*",
                 ],
             )
+        )
+
+        # Suppress CDK Nag for necessary S3 object wildcard permissions
+        NagSuppressions.add_resource_suppressions(
+            self.server.function.role,
+            [
+                {
+                    "id": "AwsSolutions-IAM5",
+                    "reason": "Lambda function requires wildcard permission for S3 objects within the specific log bucket. This is necessary for log file operations and follows AWS best practices for Lambda S3 access.",
+                    "appliesTo": [
+                        "Resource::*/*"
+                    ],
+                }
+            ],
         )
 
         self.api = ApigwConstruct(
