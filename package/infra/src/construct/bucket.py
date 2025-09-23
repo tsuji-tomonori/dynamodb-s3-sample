@@ -40,7 +40,7 @@ class S3Construct(Construct):
             iam.PolicyStatement(
                 sid="DenyInsecureConnections",
                 effect=iam.Effect.DENY,
-                principals=[iam.StarPrincipal()],
+                principals=[iam.StarPrincipal()],  # type: ignore[arg-type]
                 actions=["s3:*"],
                 resources=[
                     self.bucket.bucket_arn,
