@@ -82,6 +82,19 @@
     "python.analysis.diagnosticMode": "workspace", // ワークスペース全体を診断
     "python.analysis.autoImportCompletions": true, // 自動インポートの補完を有効化
     "python.analysis.useLibraryCodeForTypes": true, // ライブラリコードを型推論に使用
+    "python.analysis.exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "**/.pytest_cache",
+        "**/.mypy_cache",
+        "**/.venv",
+        "**/.vscode",
+        "**/.idea",
+        "**/.DS_Store",
+        "**/.env",
+        "**/.env.*",
+        "**/cdk.out"
+    ],
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff", // Python のデフォルトフォーマッターを ruff に設定
         "editor.codeActionsOnSave": {

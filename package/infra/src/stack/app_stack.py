@@ -45,7 +45,7 @@ class AppStack(cdk.Stack):
         assert self.server.function.role is not None, (
             "Lambda function role must be defined"
         )
-        self.book.table.grant_read_data(self.server.function)
+        self.book.table.grant_read_write_data(self.server.function)
 
         self.log_bucket = S3Construct(
             self,
@@ -56,7 +56,7 @@ class AppStack(cdk.Stack):
             "LOG_BUCKET_NAME",
             self.log_bucket.bucket.bucket_name,
         )
-        self.log_bucket.bucket.grant_read_write(self.server.function)
+        self.log_bucket.bucket.grant_write(self.server.function)
 
         self.api = ApigwConstruct(
             self,

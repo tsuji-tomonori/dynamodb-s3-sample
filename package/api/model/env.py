@@ -14,6 +14,9 @@ class EnvConfig(BaseModel):
 
     books_table_name: str = Field(..., description="BOOKSテーブルの名前")
     log_bucket_name: str = Field(..., description="ログ保存先のS3バケット名")
+    project_major_version: str = Field(
+        ..., description="プロジェクトのメジャーバージョン"
+    )
 
     @classmethod
     def from_env(cls) -> "EnvConfig":

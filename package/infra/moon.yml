@@ -14,12 +14,10 @@ tasks:
 
   diff:
     command: uv run cdk diff
-    inputs:
-      - 'src/**/*.py'
-      - 'app.py'
+    options:
+      cache: false
 
   deploy:
     command: uv run cdk deploy
-    inputs:
-      - 'src/**/*.py'
-      - 'app.py'
+    options:
+      cache: false

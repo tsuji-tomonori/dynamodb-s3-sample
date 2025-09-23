@@ -60,6 +60,11 @@ class LambdaConstruct(Construct):
             system_log_level_v2=lambda_.SystemLogLevel.WARN,
             application_log_level_v2=lambda_.ApplicationLogLevel.WARN,
             description=project.description,
+            environment={
+                "PROJECT_NAME": project.name,
+                "PROJECT_MAJOR_VERSION": project.major_version,
+                "PROJECT_SEMANTIC_VERSION": project.semantic_version,
+            },
         )
 
         # Create log group with retention

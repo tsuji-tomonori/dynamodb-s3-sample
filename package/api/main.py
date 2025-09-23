@@ -1,6 +1,6 @@
-def main():
-    print("Hello from api!")
+from mangum import Mangum
 
+from app import app
 
-if __name__ == "__main__":
-    main()
+# Lambda用のハンドラー
+handler = Mangum(app)
