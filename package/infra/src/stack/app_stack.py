@@ -1,6 +1,7 @@
 from typing import Any
 
 import aws_cdk as cdk
+from aws_cdk import aws_iam as iam
 from constructs import Construct
 from src.construct.bucket import S3Construct
 from src.construct.function import LambdaConstruct
@@ -56,7 +57,20 @@ class AppStack(cdk.Stack):
             "LOG_BUCKET_NAME",
             self.log_bucket.bucket.bucket_name,
         )
-        self.log_bucket.bucket.grant_write(self.server.function)
+
+        # Grant specific S3 permissions instead of wildcard permissions
+        self.server.function.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:PutObject",
+                    "s3:PutObjectAcl",
+                ],
+                resources=[
+                    f"{self.log_bucket.bucket.bucket_arn}/*",
+                ],
+            )
+        )
 
         self.api = ApigwConstruct(
             self,

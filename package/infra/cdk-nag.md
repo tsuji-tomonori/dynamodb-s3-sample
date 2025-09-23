@@ -105,3 +105,49 @@ self.bucket.add_to_resource_policy(
 - 暗号化されていないHTTP接続をすべて拒否
 - データの盗聴や改ざんリスクを軽減
 - AWS Well-Architected Framework のセキュリティベストプラクティスに準拠
+
+### 2025-09-23: IAMワイルドカード権限の修正 (AwsSolutions-IAM5)
+
+**問題:** Lambdaのデフォルトポリシーにワイルドカード権限が含まれている
+**重要度:** ERROR (高優先度)
+**対象ファイル:** `package/infra/src/stack/app_stack.py`
+
+**修正内容:**
+- `grant_write()`メソッドの代わりに具体的なIAM権限を指定
+- S3操作に必要最小限の権限のみを付与
+- ワイルドカード権限 (`s3:DeleteObject*`, `s3:Abort*`) を除去
+
+**修正前の問題箇所:**
+```python
+# ワイルドカード権限を含む広範囲な権限付与
+self.log_bucket.bucket.grant_write(self.server.function)
+```
+
+**修正後の実装:**
+```python
+# 具体的な権限のみを付与
+self.server.function.role.add_to_policy(
+    iam.PolicyStatement(
+        effect=iam.Effect.ALLOW,
+        actions=[
+            "s3:PutObject",
+            "s3:PutObjectAcl",
+        ],
+        resources=[
+            f"{self.log_bucket.bucket.bucket_arn}/*",
+        ],
+    )
+)
+```
+
+**変更された権限:**
+- **削除:** `s3:DeleteObject*` (削除系ワイルドカード権限)
+- **削除:** `s3:Abort*` (中断系ワイルドカード権限)
+- **保持:** `s3:PutObject` (ログファイル書き込みに必要)
+- **保持:** `s3:PutObjectAcl` (オブジェクトACL設定に必要)
+
+**効果:**
+- 最小権限の原則に準拠
+- 不要な削除・中断権限を除去してセキュリティリスクを軽減
+- ログ書き込み機能は維持しつつ、過剰な権限を排除
+- CDK Nag ルール AwsSolutions-IAM5 に準拠
