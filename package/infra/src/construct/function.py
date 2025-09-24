@@ -56,7 +56,6 @@ class LambdaConstruct(Construct):
 
         # Add custom policy for CloudWatch Logs with function construct ID
         # Use construct ID instead of function name to avoid circular dependency
-        function_name_pattern = f"{construct_id}Function*"
         self.execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -66,8 +65,8 @@ class LambdaConstruct(Construct):
                     "logs:PutLogEvents",
                 ],
                 resources=[
-                    f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{function_name_pattern}",
-                    f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{function_name_pattern}:*",
+                    f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{construct_id}Function*",
+                    f"arn:aws:logs:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/{construct_id}Function*:*",
                 ],
             )
         )
@@ -97,7 +96,7 @@ class LambdaConstruct(Construct):
         )
 
         # Suppress CDK Nag for necessary log stream wildcard permissions on DefaultPolicy
-        # Use pattern matching to avoid circular dependency
+        # Use construct ID pattern matching to avoid circular dependency
         NagSuppressions.add_resource_suppressions_by_path(
             cdk.Stack.of(self),
             f"{self.execution_role.node.path}/DefaultPolicy",
@@ -106,7 +105,7 @@ class LambdaConstruct(Construct):
                     "id": "AwsSolutions-IAM5",
                     "reason": "Lambda function requires wildcard permission for log streams within its specific log group. CloudWatch Logs automatically generates unique stream names with timestamps at runtime, making wildcard necessary. This follows AWS official best practices for Lambda logging and is limited to the specific function's log group.",
                     "appliesTo": [
-                        f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{function_name_pattern}:*"
+                        f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*:*"
                     ],
                 }
             ],
