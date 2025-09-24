@@ -1,7 +1,7 @@
 ---
 allowed-tools: mcp__cdk-mcp-server__ExplainCDKNagRule, Bash(moon infra:test), Read, Edit, Glob, Grep, MultiEdit
 description: CDK Nagアラートを解消するためのカスタムスラッシュコマンド
-argument-hint: [rule-id] (例: AwsSolutions-APIG2)
+argument-hint: [rule-id] [comment] (例: AwsSolutions-APIG2 "セキュリティ上の理由で抑制")
 ---
 
 ## コンテキスト
@@ -16,6 +16,7 @@ CDK Nagアラートを解消するために以下の手順を実行します：
 ## 引数
 
 - `$ARGUMENTS`: 修正対象のCDK Nagルール (例: AwsSolutions-APIG2)
+- オプション: コメント（抑制理由など）を指定可能
 
 ## タスク実行
 
@@ -28,6 +29,7 @@ CDK Nagアラートを解消するために以下の手順を実行します：
 
 ### 3. CDKコード修正
 package/infra/src ディレクトリ内の関連するCDKコードを特定し、ルールに準拠するよう修正します。
+コメントが指定されている場合は、NagSuppression抑制を適用し、コメントを理由として記録します。
 
 ### 4. テスト実行と結果確認
 修正後、`moon infra:test`を実行してCDK Nagスキャンの結果を確認します。
@@ -38,5 +40,6 @@ package/infra/src ディレクトリ内の関連するCDKコードを特定し�
 ---
 
 **使用例**:
-- `/fix-nag AwsSolutions-APIG2`
-- `/fix-nag AwsSolutions-S1`
+- `/fix-nag AwsSolutions-APIG2` (修正対応)
+- `/fix-nag AwsSolutions-S1 "開発環境のため抑制"` (抑制対応)
+- `/fix-nag AwsSolutions-IAM5 セキュリティ上の理由で抑制` (抑制対応)
