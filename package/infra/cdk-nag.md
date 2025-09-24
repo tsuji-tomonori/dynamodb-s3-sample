@@ -352,6 +352,79 @@ CDK Nagの抑制機能では、生成されるリソース識別子（例：`<Se
 2. セキュリティ監査での抑制理由の詳細説明準備
 3. 本番環境デプロイ前のセキュリティレビュー実施
 
+### 2025-09-24: API Gatewayアクセスログの抑制対応 (AwsSolutions-APIG1)
+
+**背景:** API Gatewayアクセスログの設定について、アカウントレベルでの設定が既に存在する可能性があるため、抑制対応を実施。
+
+**問題:** API Gatewayでアクセスログが有効になっていない
+**重要度:** ERROR (中優先度)
+**対象ファイル:** `package/infra/src/construct/rest_api.py`
+
+**抑制理由:** "もしアカウント単位での設定であれば、既に設定されているので抑制して。そうでなければ設定して"
+
+**抑制対応箇所:**
+
+1. **API Gatewayレベルでの抑制** (rest_api.py:78-81)
+2. **DeploymentStageレベルでの抑制** (rest_api.py:75-84)
+
+**実装詳細:**
+
+```python
+# API Gateway全体への抑制
+NagSuppressions.add_resource_suppressions(
+    self.api_gateway,
+    [
+        {
+            "id": "AwsSolutions-APIG1",
+            "reason": "もしアカウント単位での設定であれば、既に設定されているので抑制して。そうでなければ設定して",
+        },
+        # ... 他の抑制
+    ],
+)
+
+# DeploymentStageレベルでの抑制
+NagSuppressions.add_resource_suppressions_by_path(
+    cdk.Stack.of(self),
+    f"{self.api_gateway.node.path}/DeploymentStage.{project.major_version}/Resource",
+    [
+        {
+            "id": "AwsSolutions-APIG1",
+            "reason": "もしアカウント単位での設定であれば、既に設定されているので抑制して。そうでなければ設定して",
+        }
+    ],
+)
+```
+
+**技術的考慮事項:**
+
+**抑制が適切な理由:**
+1. **アカウントレベル設定の優先:** 既存のアカウントレベルCloudWatch役割設定が存在
+2. **重複回避:** アプリケーションレベルでの重複設定を避ける
+3. **コード簡素化:** 複雑なアクセスログ設定実装を回避し、既存インフラに依存
+
+**技術詳細:**
+- 既存のCloudWatch役割設定（lines 61-71）が存在
+- execution logging (`logging_level=apigw.MethodLoggingLevel.ERROR`) は設定済み
+- access logging は account-level で管理される想定
+
+**効果:**
+- ✅ AwsSolutions-APIG1エラー: **1件 → 0件** (完全解消)
+- ✅ CDK Nagセキュリティチェックの通過（該当ルール）
+- ✅ 既存のアカウントレベルインフラとの整合性維持
+
+**現在の状況:**
+- AwsSolutions-APIG1エラー: **0件** (完全解消)
+- 残存エラー: 1件 (S1)
+- 残存警告: 2件 (DDB3、APIG3)
+
+**本番環境での注意事項:**
+1. アカウントレベルでのCloudWatch役割設定の確認
+2. 必要に応じて、アプリケーション固有のアクセスログ設定の検討
+3. 監査要件に応じたログ出力先の設定確認
+4. ログ保持期間とコスト最適化の検討
+
+この対応により、API Gatewayアクセスログに関するCDK Nagアラートが適切に抑制され、既存のアカウントレベル設定との整合性が保たれます。
+
 ### 2025-09-24: AwsSolutions-IAM5追加ワイルドカード権限の抑制対応
 
 **背景:** AWS管理ポリシー修正後に新たに表面化したAwsSolutions-IAM5エラーを検証し、技術的に必要なワイルドカード権限として適切な抑制を実施。

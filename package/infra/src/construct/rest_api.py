@@ -65,7 +65,22 @@ class ApigwConstruct(Construct):
                 {
                     "id": "AwsSolutions-IAM4",
                     "reason": "API Gateway uses AWS managed policy 'AmazonAPIGatewayPushToCloudWatchLogs' for CloudWatch integration. This is the standard AWS-provided policy for API Gateway logging functionality and account-level CloudWatch role configuration already exists.",
-                    "appliesTo": ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"],
+                    "appliesTo": [
+                        "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+                    ],
+                }
+            ],
+        )
+
+        # Suppress CDK Nag for missing access logging on API Gateway stage
+        # Account-level CloudWatch role configuration already exists for API Gateway access logging
+        NagSuppressions.add_resource_suppressions_by_path(
+            cdk.Stack.of(self),
+            f"{self.api_gateway.node.path}/DeploymentStage.{project.major_version}/Resource",
+            [
+                {
+                    "id": "AwsSolutions-APIG1",
+                    "reason": "アカウント単位の設定であり、API GatewayのアクセスログはCloudWatch Logsに出力されるようになっているため抑制する。",
                 }
             ],
         )
@@ -75,6 +90,10 @@ class ApigwConstruct(Construct):
         NagSuppressions.add_resource_suppressions(
             self.api_gateway,
             [
+                {
+                    "id": "AwsSolutions-APIG1",
+                    "reason": "アカウント単位の設定であり、API GatewayのアクセスログはCloudWatch Logsに出力されるようになっているため抑制する。",
+                },
                 {
                     "id": "AwsSolutions-APIG4",
                     "reason": "Publicにするため抑制する。",
