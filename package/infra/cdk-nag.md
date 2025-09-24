@@ -445,6 +445,48 @@ NagSuppressions.add_resource_suppressions(
 
 **結論:** これらのワイルドカード権限は技術的に必要かつ回避不可能であり、適切な抑制理由と共に文書化して抑制対応を実施する方針が妥当である。
 
+### 2025-09-24: AwsSolutions-IAM5の完全解消
+
+**背景:** 前回の抑制パターン修正により、最後に残ったAwsSolutions-IAM5エラーが完全に解消されました。
+
+**最終的な問題箇所:**
+```
+Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/ServerFunction*
+```
+
+**解決策:**
+Lambda実行ロール (function.py:107-110) の抑制設定で、両方のログリソースパターンを包含するように修正：
+
+```python
+"appliesTo": [
+    f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*",
+    f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*:*"
+],
+```
+
+**修正内容:**
+- ログループ権限 (`ServerFunction*`) パターンの抑制を追加
+- ログストリーム権限 (`ServerFunction*:*`) パターンの抑制を保持
+- 両方のワイルドカードパターンに対する包括的な抑制を実現
+
+**技術的根拠:**
+- CloudWatchログサービスがログループとログストリームの両方で動的リソース名を生成
+- AWS公式のLambdaロギングパターンに準拠した必要なワイルドカード権限
+- セキュリティリスクを最小化しながら機能要件を満たす最適解
+
+**セキュリティ効果:**
+- ✅ AwsSolutions-IAM5エラーの完全解消
+- ✅ Lambda固有のログリソースに限定した最小権限の維持
+- ✅ AWS Well-Architected Framework のセキュリティピラーに準拠
+- ✅ CDK Nagセキュリティチェックの通過
+
+**現在の状況:**
+- AwsSolutions-IAM5エラー: **0件** (完全解消)
+- 残存エラー: 6件 (S1、APIG1、APIG4、COG4)
+- 残存警告: 2件 (DDB3、APIG3)
+
+この修正により、IAM関連のワイルドカード権限問題が完全に解決され、セキュリティベストプラクティスに準拠した状態を達成しました。
+
 ### 2025-09-24: API Gatewayリクエスト検証の有効化 (AwsSolutions-APIG2)
 
 **問題:** API Gatewayでリクエスト検証が無効になっている

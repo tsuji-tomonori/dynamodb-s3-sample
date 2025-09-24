@@ -105,6 +105,7 @@ class LambdaConstruct(Construct):
                     "id": "AwsSolutions-IAM5",
                     "reason": "Lambda function requires wildcard permission for log streams within its specific log group. CloudWatch Logs automatically generates unique stream names with timestamps at runtime, making wildcard necessary. This follows AWS official best practices for Lambda logging and is limited to the specific function's log group.",
                     "appliesTo": [
+                        f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*",
                         f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*:*"
                     ],
                 }

@@ -1,5 +1,5 @@
 ---
-allowed-tools: mcp__cdk-mcp-server__ExplainCDKNagRule, Bash(moon infra:test:*), Read, Edit, Glob, Grep, MultiEdit
+allowed-tools: mcp__cdk-mcp-server__ExplainCDKNagRule, Bash(moon infra:test), Read, Edit, Glob, Grep, MultiEdit
 description: CDK Nagアラートを解消するためのカスタムスラッシュコマンド
 argument-hint: [rule-id] (例: AwsSolutions-APIG2)
 ---
