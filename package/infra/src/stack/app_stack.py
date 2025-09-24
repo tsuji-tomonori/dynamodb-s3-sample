@@ -49,9 +49,19 @@ class AppStack(cdk.Stack):
         )
         self.book.table.grant_read_write_data(self.server.function)
 
+        # Create access log bucket first (without access logging to avoid circular dependency)
+        self.access_log_bucket = S3Construct(
+            self,
+            "AccessLogBucket",
+            enable_access_logging=False,
+        )
+
+        # Create main log bucket with access logging enabled
         self.log_bucket = S3Construct(
             self,
             "LogBucket",
+            enable_access_logging=True,
+            access_log_bucket=self.access_log_bucket.bucket,
         )
 
         self.server.function.add_environment(

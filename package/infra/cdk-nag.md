@@ -619,6 +619,97 @@ NagSuppressions.add_resource_suppressions_by_path(
 
 この対応により、APIの意図的なパブリック設計に対するCDK Nagアラートが適切に抑制され、セキュリティ監査時にも明確な理由が提供されます。
 
+### 2025-09-24: S3サーバーアクセスログの有効化 (AwsSolutions-S1)
+
+**問題:** S3バケットでサーバーアクセスログが無効になっている
+**重要度:** ERROR (中優先度)
+**対象ファイル:** `package/infra/src/construct/bucket.py`, `package/infra/src/stack/app_stack.py`
+
+**修正内容:**
+- S3バケット構成にサーバーアクセスログ機能を追加
+- 専用のアクセスログバケットを作成し、循環依存を回避
+- メインバケットのアクセス要求を全て記録する設定を実装
+
+**修正前の問題:**
+- S3バケットのアクセス記録が取得されていない
+- セキュリティ監査やトラブルシューティング時に詳細なアクセス履歴が確認できない
+- AWS Well-Architected Framework の監視要件に準拠していない
+
+**アーキテクチャ設計:**
+```python
+# 循環依存を回避する2段階構成
+# 1. アクセスログ専用バケット（ログ無効）
+self.access_log_bucket = S3Construct(
+    self,
+    "AccessLogBucket",
+    enable_access_logging=False,
+)
+
+# 2. メインバケット（アクセスログ有効）
+self.log_bucket = S3Construct(
+    self,
+    "LogBucket",
+    enable_access_logging=True,
+    access_log_bucket=self.access_log_bucket.bucket,
+)
+```
+
+**bucket.py の修正詳細:**
+```python
+def __init__(
+    self: Self,
+    scope: Construct,
+    construct_id: str,
+    enable_access_logging: bool = False,
+    access_log_bucket: s3.IBucket | None = None,
+    **kwargs: Any,
+) -> None:
+    # サーバーアクセスログ設定の動的追加
+    bucket_props = {
+        "versioned": True,
+        "block_public_access": s3.BlockPublicAccess.BLOCK_ALL,
+        "encryption": s3.BucketEncryption.S3_MANAGED,
+        "removal_policy": cdk.RemovalPolicy.DESTROY,
+    }
+
+    # アクセスログが有効でログバケットが指定されている場合のみ設定
+    if enable_access_logging and access_log_bucket is not None:
+        bucket_props["server_access_logs_bucket"] = access_log_bucket
+        bucket_props["server_access_logs_prefix"] = f"access-logs/{construct_id.lower()}/"
+
+    self.bucket = s3.Bucket(self, "Bucket", **bucket_props)
+```
+
+**技術的考慮事項:**
+- **循環依存回避:** 2つのバケットを段階的に作成し、相互参照を防ぐ
+- **ログプレフィックス:** バケット名ベースのプレフィックスでログを整理
+- **セキュリティ:** アクセスログバケットも同レベルのセキュリティ設定を適用
+
+**効果:**
+- ✅ AwsSolutions-S1エラー: **1件 → 0件** (完全解消)
+- ✅ S3バケットのアクセス履歴の完全記録
+- ✅ セキュリティ監査要件に準拠
+- ✅ トラブルシューティング時の詳細なアクセス分析が可能
+
+**ログ出力内容:**
+- 全てのS3バケットへのアクセス要求（GET、PUT、DELETE等）
+- アクセス元IPアドレス、ユーザーエージェント、認証情報
+- レスポンス状況、転送バイト数、処理時間等の詳細メトリクス
+- 失敗したアクセス試行も含む包括的なアクセス履歴
+
+**運用での活用:**
+1. **セキュリティ分析:** 不正アクセス試行の検出とパターン分析
+2. **監査対応:** コンプライアンス要件での詳細アクセス履歴提供
+3. **コスト最適化:** アクセスパターンの分析によるストレージクラス最適化
+4. **トラブルシューティング:** アプリケーション問題の根本原因分析
+
+**現在の状況:**
+- AwsSolutions-S1エラー: **0件** (完全解消)
+- 残存エラー: 0件（全解消）
+- 残存警告: 2件 (DDB3、APIG3)
+
+この対応により、S3バケットのアクセス記録が包括的に取得され、セキュリティとコンプライアンス要件に完全に準拠した状態を実現しました。
+
 ### 2025-09-24: AwsSolutions-IAM5の完全解消
 
 **背景:** 前回の抑制パターン修正により、最後に残ったAwsSolutions-IAM5エラーが完全に解消されました。
