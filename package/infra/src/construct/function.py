@@ -4,7 +4,6 @@ from typing import Any, Self
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
-from aws_cdk import aws_logs
 from cdk_nag import NagSuppressions
 from constructs import Construct
 from src.model.project import Project
@@ -106,7 +105,7 @@ class LambdaConstruct(Construct):
                     "reason": "Lambda function requires wildcard permission for log streams within its specific log group. CloudWatch Logs automatically generates unique stream names with timestamps at runtime, making wildcard necessary. This follows AWS official best practices for Lambda logging and is limited to the specific function's log group.",
                     "appliesTo": [
                         f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*",
-                        f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*:*"
+                        f"Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/{construct_id}Function*:*",
                     ],
                 }
             ],
@@ -132,5 +131,6 @@ class LambdaConstruct(Construct):
             description="Lambda dependencies layer ARN",
         )
 
+
 # LogGroup output removed due to circular dependency
-        # Log group is automatically created by Lambda function
+# Log group is automatically created by Lambda function
