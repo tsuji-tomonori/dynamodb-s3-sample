@@ -3,6 +3,7 @@ from typing import Any, Self
 import aws_cdk as cdk
 from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_wafv2 as wafv2
 from cdk_nag import NagSuppressions
 from constructs import Construct
 from src.model.project import Project
@@ -54,6 +55,66 @@ class ApigwConstruct(Construct):
             rest_api=self.api_gateway,
             validate_request_body=True,
             validate_request_parameters=True,
+        )
+
+        # Create WAF WebACL
+        self.web_acl = wafv2.CfnWebACL(
+            self,
+            "WebACL",
+            scope="REGIONAL",
+            default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
+            rules=[
+                # AWS Managed Rules - Common Rule Set
+                wafv2.CfnWebACL.RuleProperty(
+                    name="AWSManagedRulesCommonRuleSet",
+                    priority=1,
+                    override_action=wafv2.CfnWebACL.OverrideActionProperty(none={}),
+                    statement=wafv2.CfnWebACL.StatementProperty(
+                        managed_rule_group_statement=wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
+                            vendor_name="AWS",
+                            name="AWSManagedRulesCommonRuleSet",
+                        )
+                    ),
+                    visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                        sampled_requests_enabled=True,
+                        cloud_watch_metrics_enabled=True,
+                        metric_name="CommonRuleSetMetric",
+                    ),
+                ),
+                # AWS Managed Rules - Known Bad Inputs Rule Set
+                wafv2.CfnWebACL.RuleProperty(
+                    name="AWSManagedRulesKnownBadInputsRuleSet",
+                    priority=2,
+                    override_action=wafv2.CfnWebACL.OverrideActionProperty(none={}),
+                    statement=wafv2.CfnWebACL.StatementProperty(
+                        managed_rule_group_statement=wafv2.CfnWebACL.ManagedRuleGroupStatementProperty(
+                            vendor_name="AWS",
+                            name="AWSManagedRulesKnownBadInputsRuleSet",
+                        )
+                    ),
+                    visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                        sampled_requests_enabled=True,
+                        cloud_watch_metrics_enabled=True,
+                        metric_name="KnownBadInputsRuleSetMetric",
+                    ),
+                ),
+            ],
+            visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
+                sampled_requests_enabled=True,
+                cloud_watch_metrics_enabled=True,
+                metric_name="WebACLMetric",
+            ),
+        )
+
+        self.waf_connection = wafv2.CfnWebACLAssociation(
+            scope=self,
+            id="WebAclAssociation",
+            resource_arn=(
+                f"arn:aws:apigateway:{self.api_gateway.env.region}::"
+                f"/restapis/{self.api_gateway.rest_api_id}"
+                f"/stages/{self.api_gateway.deployment_stage.stage_name}"
+            ),
+            web_acl_arn=self.web_acl.attr_arn,
         )
 
         # Suppress CDK Nag for AWS managed policy usage in API Gateway CloudWatch role
