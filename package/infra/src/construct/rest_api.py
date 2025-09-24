@@ -70,6 +70,54 @@ class ApigwConstruct(Construct):
             ],
         )
 
+        # Suppress CDK Nag for missing authorization on API Gateway methods
+        # This API is intentionally designed as a public API without authentication
+        NagSuppressions.add_resource_suppressions(
+            self.api_gateway,
+            [
+                {
+                    "id": "AwsSolutions-APIG4",
+                    "reason": "Publicにするため抑制する。",
+                },
+                {
+                    "id": "AwsSolutions-COG4",
+                    "reason": "Publicにするため抑制する。",
+                },
+            ],
+        )
+
+        # Suppress CDK Nag for specific API Gateway methods
+        # Apply to both root method (/) and proxy method (/{proxy+})
+        NagSuppressions.add_resource_suppressions_by_path(
+            cdk.Stack.of(self),
+            f"{self.api_gateway.node.path}/Default/ANY/Resource",
+            [
+                {
+                    "id": "AwsSolutions-APIG4",
+                    "reason": "Publicにするため抑制する。",
+                },
+                {
+                    "id": "AwsSolutions-COG4",
+                    "reason": "Publicにするため抑制する。",
+                },
+            ],
+        )
+
+        NagSuppressions.add_resource_suppressions_by_path(
+            cdk.Stack.of(self),
+            f"{self.api_gateway.node.path}/Default/{{proxy+}}/ANY/Resource",
+            [
+                {
+                    "id": "AwsSolutions-APIG4",
+                    "reason": "Publicにするため抑制する。",
+                },
+                {
+                    "id": "AwsSolutions-COG4",
+                    "reason": "Publicにするため抑制する。",
+                },
+            ],
+        )
+
         # Output API Gateway URL
         cdk.CfnOutput(
             self,

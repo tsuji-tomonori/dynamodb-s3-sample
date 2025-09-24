@@ -445,6 +445,107 @@ NagSuppressions.add_resource_suppressions(
 
 **結論:** これらのワイルドカード権限は技術的に必要かつ回避不可能であり、適切な抑制理由と共に文書化して抑制対応を実施する方針が妥当である。
 
+### 2025-09-24: AwsSolutions-APIG4/COG4の抑制対応（Public API設計）
+
+**背景:** 現在のAPIは意図的にパブリック（認証なし）APIとして設計されているため、AwsSolutions-APIG4（認証未実装）とAwsSolutions-COG4（Cognito未使用）を抑制対応として処理。
+
+**抑制対象のCDK Nagルール:**
+1. **AwsSolutions-APIG4**: API Gatewayに認証が実装されていない
+2. **AwsSolutions-COG4**: API GatewayメソッドがCognitoユーザープール認証を使用していない
+
+**抑制理由:** "Publicにするため抑制する。"
+
+**実装場所:** `package/infra/src/construct/rest_api.py:75-119`
+
+**抑制実装詳細:**
+
+```python
+# Suppress CDK Nag for missing authorization on API Gateway methods
+# This API is intentionally designed as a public API without authentication
+NagSuppressions.add_resource_suppressions(
+    self.api_gateway,
+    [
+        {
+            "id": "AwsSolutions-APIG4",
+            "reason": "Publicにするため抑制する。",
+        },
+        {
+            "id": "AwsSolutions-COG4",
+            "reason": "Publicにするため抑制する。",
+        },
+    ],
+)
+
+# Suppress CDK Nag for specific API Gateway methods
+# Apply to both root method (/) and proxy method (/{proxy+})
+NagSuppressions.add_resource_suppressions_by_path(
+    cdk.Stack.of(self),
+    f"{self.api_gateway.node.path}/Default/ANY/Resource",
+    [
+        {
+            "id": "AwsSolutions-APIG4",
+            "reason": "Publicにするため抑制する。",
+        },
+        {
+            "id": "AwsSolutions-COG4",
+            "reason": "Publicにするため抑制する。",
+        },
+    ],
+)
+
+NagSuppressions.add_resource_suppressions_by_path(
+    cdk.Stack.of(self),
+    f"{self.api_gateway.node.path}/Default/{{proxy+}}/ANY/Resource",
+    [
+        {
+            "id": "AwsSolutions-APIG4",
+            "reason": "Publicにするため抑制する。",
+        },
+        {
+            "id": "AwsSolutions-COG4",
+            "reason": "Publicにするため抑制する。",
+        },
+    ],
+)
+```
+
+**技術的考慮事項:**
+
+**抑制が適切な理由:**
+1. **要件設計:** APIはサンプルアプリケーションとして設計されており、認証機能は要件外
+2. **学習・開発目的:** 複雑な認証機構なしに基本的なCRUD操作を学習できる
+3. **デプロイ簡素化:** 認証設定により複雑性を増すことなく、シンプルな構成を維持
+4. **コスト最適化:** Cognitoなどの認証サービスのコストを削減
+
+**セキュリティ配慮:**
+- パブリックAPIであることを明示的に文書化
+- 本番環境では認証実装が必要であることを開発者に明示
+- 機密データは扱わないサンプルデータのみを使用
+
+**抑制の適用範囲:**
+- `/AppStack/Api/LambdaRestApi/Default/ANY/Resource` (ルートエンドポイント)
+- `/AppStack/Api/LambdaRestApi/Default/{proxy+}/ANY/Resource` (プロキシエンドポイント)
+- API Gateway全体の設定レベル
+
+**効果:**
+- ✅ AwsSolutions-APIG4エラー: 4件 → 0件（完全解消）
+- ✅ AwsSolutions-COG4エラー: 2件 → 0件（完全解消）
+- ✅ CDK Nagセキュリティチェックの通過（該当ルール）
+- ✅ サンプルアプリケーションとしての簡素化と学習効率向上
+
+**本番環境への移行時の注意事項:**
+1. 抑制理由を見直し、適切な認証機構の実装を検討
+2. IAM認証、Cognito User Pools、または Custom Authorizer の導入
+3. API キー管理とレート制限の実装
+4. セキュリティログ監査の強化
+
+**現在の状況:**
+- AwsSolutions-APIG4/COG4エラー: **0件** (完全解消)
+- 残存エラー: 2件 (S1、APIG1)
+- 残存警告: 2件 (DDB3、APIG3)
+
+この対応により、APIの意図的なパブリック設計に対するCDK Nagアラートが適切に抑制され、セキュリティ監査時にも明確な理由が提供されます。
+
 ### 2025-09-24: AwsSolutions-IAM5の完全解消
 
 **背景:** 前回の抑制パターン修正により、最後に残ったAwsSolutions-IAM5エラーが完全に解消されました。
