@@ -34,10 +34,9 @@ class ApigwConstruct(Construct):
         self.cloudwatch_role = iam.Role(
             self,
             "CloudWatchRole",
-            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),  # type: ignore
             description="Custom API Gateway CloudWatch logs role",
         )
-
 
         # Create API Gateway without default CloudWatch role
         self.api_gateway = apigw.LambdaRestApi(

@@ -34,10 +34,9 @@ class LambdaConstruct(Construct):
         self.execution_role = iam.Role(
             self,
             "ExecutionRole",
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),  # type: ignore
             description="Custom Lambda execution role with minimal permissions",
         )
-
 
         # Create Lambda layer for dependencies
         layer_path = str(Path(__file__).resolve().parents[4] / ".layers")
@@ -64,7 +63,7 @@ class LambdaConstruct(Construct):
             code=lambda_.Code.from_asset("../api"),
             memory_size=5192,
             timeout=cdk.Duration.seconds(15),
-            role=self.execution_role,  # Use custom role instead of default
+            role=self.execution_role,  # type: ignore
             layers=[
                 self.dependencies_layer,
             ],
