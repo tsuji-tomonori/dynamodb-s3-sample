@@ -710,6 +710,70 @@ def __init__(
 
 この対応により、S3バケットのアクセス記録が包括的に取得され、セキュリティとコンプライアンス要件に完全に準拠した状態を実現しました。
 
+### 2025-09-24: DynamoDB Point-in-time Recoveryの有効化 (AwsSolutions-DDB3)
+
+**問題:** DynamoDBテーブルでPoint-in-time Recovery（PITR）が無効になっている
+**重要度:** WARN (低優先度)
+**対象ファイル:** `package/infra/src/construct/table.py`
+
+**修正内容:**
+- DynamoDBテーブルにPoint-in-time Recoveryを有効化
+- データの継続バックアップと35日間のポイントインタイム復旧機能を実装
+- 偶発的なデータ損失に対する追加の保護層を提供
+
+**修正前の問題:**
+- DynamoDBテーブルのポイントインタイム復旧機能が無効
+- データ損失リスクに対する追加保護が不足
+- AWS Well-Architected Framework の信頼性要件に未対応
+
+**修正詳細:**
+```python
+# Create DynamoDB table
+self.table = dynamodb.Table(
+    self,
+    "Table",
+    partition_key=dynamodb.Attribute(
+        name="isbn",
+        type=dynamodb.AttributeType.STRING,
+    ),
+    billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+    removal_policy=cdk.RemovalPolicy.DESTROY,
+    point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
+        point_in_time_recovery_enabled=True
+    ),
+)
+```
+
+**技術的効果:**
+- **継続バックアップ:** 1秒単位の粒度でデータを継続的にバックアップ
+- **ポイントインタイム復旧:** 過去35日間の任意の時点へのデータ復旧が可能
+- **データ保護強化:** オンデマンドバックアップに加えた追加の保険層
+- **運用効率向上:** 自動バックアップによる運用負荷軽減
+
+**セキュリティとコンプライアンス:**
+- データの偶発的削除や破損からの迅速な復旧
+- 監査要件での過去データ状態の再現可能性
+- ビジネス継続性とディザスタリカバリの強化
+- AWS Well-Architected Framework 信頼性ピラーへの準拠
+
+**コスト考慮:**
+- PITRは継続バックアップのストレージコストが発生
+- データベースサイズに応じた課金（通常は元データの約20%）
+- 復旧頻度とRTO/RPO要件に基づいた費用対効果の評価
+
+**効果:**
+- ✅ AwsSolutions-DDB3警告: **1件 → 0件** (完全解消)
+- ✅ DynamoDBデータの包括的保護体制を確立
+- ✅ AWS Well-Architected Framework 信頼性要件に準拠
+- ✅ CDK Nagセキュリティチェックの通過
+
+**現在の状況:**
+- AwsSolutions-DDB3警告: **0件** (完全解消)
+- 残存エラー: 0件（全解消）
+- 残存警告: 1件 (APIG3)
+
+この対応により、DynamoDBテーブルの信頼性が大幅に向上し、データ損失リスクに対する堅牢な保護体制が確立されました。
+
 ### 2025-09-24: AwsSolutions-IAM5の完全解消
 
 **背景:** 前回の抑制パターン修正により、最後に残ったAwsSolutions-IAM5エラーが完全に解消されました。
