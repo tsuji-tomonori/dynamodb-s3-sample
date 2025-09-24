@@ -39,7 +39,9 @@ class S3Construct(Construct):
         # Add server access logging if enabled and log bucket is provided
         if enable_access_logging and access_log_bucket is not None:
             bucket_props["server_access_logs_bucket"] = access_log_bucket
-            bucket_props["server_access_logs_prefix"] = f"access-logs/{construct_id.lower()}/"
+            bucket_props["server_access_logs_prefix"] = (
+                f"access-logs/{construct_id.lower()}/"
+            )
 
         self.bucket = s3.Bucket(
             self,

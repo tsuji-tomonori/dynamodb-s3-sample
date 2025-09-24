@@ -1,5 +1,6 @@
 from aws_cdk import App, Aspects, assertions
 from cdk_nag import AwsSolutionsChecks
+
 from src.model.project import Project
 from src.stack.app_stack import AppStack
 

@@ -6,6 +6,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_wafv2 as wafv2
 from cdk_nag import NagSuppressions
 from constructs import Construct
+
 from src.model.project import Project
 
 

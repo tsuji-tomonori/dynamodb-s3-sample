@@ -4,6 +4,7 @@ import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from cdk_nag import NagSuppressions
 from constructs import Construct
+
 from src.construct.bucket import S3Construct
 from src.construct.function import LambdaConstruct
 from src.construct.rest_api import ApigwConstruct
@@ -91,9 +92,7 @@ class AppStack(cdk.Stack):
                 {
                     "id": "AwsSolutions-IAM5",
                     "reason": "Lambda function requires wildcard permission for log objects within the specific log bucket. Log file paths include dynamic timestamps and request IDs that cannot be predetermined. This is a standard pattern for S3-based application logging and is limited to PUT operations on the dedicated log bucket only.",
-                    "appliesTo": [
-                        "Resource::<LogBucket7273C8DB.Arn>/*"
-                    ],
+                    "appliesTo": ["Resource::<LogBucket7273C8DB.Arn>/*"],
                 }
             ],
         )

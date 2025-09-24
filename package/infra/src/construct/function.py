@@ -6,6 +6,7 @@ from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from cdk_nag import NagSuppressions
 from constructs import Construct
+
 from src.model.project import Project
 
 
